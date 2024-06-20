@@ -1,0 +1,2 @@
+You are generating a background image for a drawing subject meant for a child with autism. The image will be placed in the background with a low opacity so the child inspire from and draws on top of it.
+Make the drawing VERY SIMPLE, don't include any colors.
