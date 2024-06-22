@@ -91,6 +91,7 @@ class FinishGameRequest(BaseModel):
     doctor_instructions: List[str]
     drawing_subject: str
     drawing: str  # Assuming base64 encoded image
+    old_ml_feedback_on_child_level: str
 
 get_summary_prompt = open('prompts/finish_game/get_summary.txt').read()
 get_summary_prompt_template = "Child age: {}\nParent instructions:\n{}\nDoctor instructions:\n{}\nDrawing subject: {}"
@@ -108,6 +109,17 @@ def fill_get_encouraging_feedback_template(request: FinishGameRequest):
     return get_encouraging_feedback_template.format(
         request.child_age,
         request.drawing_subject
+    )
+
+get_new_ml_feedback_on_child_level_prompt = open('prompts/finish_game/get_new_ml_feedback_on_child_level.txt').read()
+get_new_ml_feedback_on_child_level_template = "Child age: {}\nParent Instructions: \n{}\nDoctor Instructions: \n{}\nOld ML feedback on child level: {}\nNewest summary: {}"
+def fill_get_new_ml_feedback_on_child_level_template(request: FinishGameRequest, summary: str):
+    return get_new_ml_feedback_on_child_level_template.format(
+        request.child_age,
+        '\n'.join(f'- {instruction}' for instruction in request.parent_instructions),
+        '\n'.join(f'- {instruction}' for instruction in request.doctor_instructions),
+        request.old_ml_feedback_on_child_level,
+        summary
     )
 
 @app.post("/finish_game")
@@ -140,4 +152,17 @@ def finish_game(request: FinishGameRequest):
         ]
     ).choices[0].message.content
 
-    return {"summary": summary, "encouraging_feedback": encouraging_feedback}
+    new_ml_feedback_on_child_level = client.chat.completions.create(
+        model=OPENAI_MODEL,
+        messages=[
+            {"role": "system", "content": get_new_ml_feedback_on_child_level_prompt},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": fill_get_new_ml_feedback_on_child_level_template(request, summary)},
+                ]
+            }
+        ]
+    ).choices[0].message.content
+
+    return {"summary": summary, "encouraging_feedback": encouraging_feedback, "new_ml_feedback_on_child_level": new_ml_feedback_on_child_level}
